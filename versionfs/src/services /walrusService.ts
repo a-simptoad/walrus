@@ -64,8 +64,8 @@ export class WalrusService {
       if (typeof data === "string") {
         blob = new Blob([new TextEncoder().encode(data)]);
       } else if (data instanceof Uint8Array) {
-        blob = new Blob([data]);
-      } else {
+        blob = new Blob([data as Uint8Array<ArrayBuffer>]);
+      } else { 
         blob = data;
       }
 
@@ -89,7 +89,7 @@ export class WalrusService {
         );
       }
 
-      const result: WalrusUploadResponse = await response.json();
+      const result: WalrusUploadResponse = await response.json() as WalrusUploadResponse;
 
       let blobId: string;
       if (result.newlyCreated) {
@@ -158,7 +158,7 @@ export class WalrusService {
         console.log(`💾 Saved to: ${filename}`);
       } else {
         // In browser environment
-        const blob = new Blob([data]);
+        const blob = new Blob([data as Uint8Array<ArrayBuffer>]);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;

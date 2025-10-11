@@ -1,17 +1,42 @@
 {
   "name": "versionfs",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Decentralized version control system using Sui and Walrus",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "dev": "ts-node-esm src/example.ts",
+    "example": "node --loader ts-node/esm src/example.ts",
+    "test:walrus": "node --loader ts-node/esm src/services/walrusService.ts",
+    "test:sui": "node --loader ts-node/esm src/services/suiService.ts",
+    "deploy": "sui move build && sui client publish --gas-budget 100000000",
+    "init": "node --loader ts-node/esm src/example.ts init",
+    "commit": "node --loader ts-node/esm src/example.ts commit",
+    "log": "node --loader ts-node/esm src/example.ts log",
+    "status": "node --loader ts-node/esm src/example.ts status"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "decentralized",
+    "version-control",
+    "git",
+    "walrus",
+    "sui",
+    "blockchain",
+    "web3"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
   "dependencies": {
-    "@mysten/sui": "^1.40.0",
-    "@mysten/walrus": "^0.7.3",
-    "node-fetch": "^3.3.2"
+    "@mysten/sui": "^1.0.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

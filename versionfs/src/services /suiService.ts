@@ -117,7 +117,7 @@ export class SuiService {
           tx.object(capId),
           tx.pure.string(branchName),
           tx.pure.string(rootBlobId),
-          tx.pure(parentIds, 'vector<address>'),
+          tx.pure.vector('id', parentIds), 
           tx.pure.string(message),
         ],
       });
@@ -249,17 +249,17 @@ export class SuiService {
    */
   async getVersion(repoId: string, versionId: string): Promise<VersionInfo> {
     try {
-      const tx = new TransactionBlock();
+      const tx = new Transaction();
 
       const [version] = tx.moveCall({
         target: `${this.packageId}::version_fs::get_version`,
         arguments: [
           tx.object(repoId),
-          tx.pure(versionId),
+          tx.pure.address(versionId),
         ],
       });
 
-      tx.transferObjects([version], tx.pure(this.getAddress()));
+      tx.transferObjects([version], tx.pure.address(this.getAddress()));
 
       const result = await this.client.devInspectTransactionBlock({
         transactionBlock: tx,
