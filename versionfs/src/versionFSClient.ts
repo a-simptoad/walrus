@@ -2,6 +2,8 @@
  * VersionFS Client - High-level API for version control operations
  * Combines Walrus storage with Sui blockchain metadata
  */
+import { FileMetadata } from './services/walrusService';
+
 
 import { WalrusService } from './services/walrusService';
 import { SuiService } from './services/suiService';
@@ -16,7 +18,7 @@ export interface FileItem {
 }
 
 export interface DirectoryTree {
-  [path: string]: FileItem;
+  [path: string]: FileMetadata;
 }
 
 export interface CommitMetadata {

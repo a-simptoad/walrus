@@ -24,7 +24,7 @@ module version_fs::version_fs {
     // ==================== Structs ====================
 
     /// Represents a version-controlled repository
-    struct Repository has key, store {
+    public struct Repository has key, store {
         id: UID,
         name: String,
         owner: address,
@@ -36,7 +36,7 @@ module version_fs::version_fs {
     }
 
     /// Represents a single commit/version in the DAG
-    struct VersionNode has store, drop, copy {
+    public struct VersionNode has store, drop, copy {
         /// Walrus blob ID for the root directory/file
         root_blob_id: String,
         /// Parent version IDs (empty for initial commit, multiple for merges)
@@ -52,20 +52,20 @@ module version_fs::version_fs {
     }
 
     /// Capability object to prove ownership
-    struct RepoCap has key, store {
+    public struct RepoCap has key, store {
         id: UID,
         repo_id: ID,
     }
 
     // ==================== Events ====================
 
-    struct RepositoryCreated has copy, drop {
+    public struct RepositoryCreated has copy, drop {
         repo_id: ID,
         owner: address,
         name: String,
     }
 
-    struct NewCommit has copy, drop {
+    public struct NewCommit has copy, drop {
         repo_id: ID,
         version_id: ID,
         root_blob_id: String,
@@ -73,13 +73,13 @@ module version_fs::version_fs {
         author: address,
     }
 
-    struct BranchUpdated has copy, drop {
+    public struct BranchUpdated has copy, drop {
         repo_id: ID,
         branch_name: String,
         new_head: ID,
     }
 
-    struct BranchCreated has copy, drop {
+    public struct BranchCreated has copy, drop {
         repo_id: ID,
         branch_name: String,
         version_id: ID,
@@ -134,7 +134,7 @@ module version_fs::version_fs {
         assert!(repo.owner == tx_context::sender(ctx), ENotOwner);
 
         // Verify all parents exist
-        let i = 0;
+        let mut i = 0;
         let parent_len = vector::length(&parent_ids);
         while (i < parent_len) {
             let parent_id = *vector::borrow(&parent_ids, i);
