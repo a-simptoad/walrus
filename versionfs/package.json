@@ -6,15 +6,15 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node-esm src/example.ts",
-    "example": "node --loader ts-node/esm src/example.ts",
-    "test:walrus": "node --loader ts-node/esm src/services/walrusService.ts",
-    "test:sui": "node --loader ts-node/esm src/services/suiService.ts",
+    "dev": "tsx src/example.ts",
+    "example": "tsx src/example.ts",
+    "test:walrus": "tsx src/services/walrusService.ts",
+    "test:sui": "tsx src/services/suiService.ts",
     "deploy": "sui move build && sui client publish --gas-budget 100000000",
-    "init": "node --loader ts-node/esm src/example.ts init",
-    "commit": "node --loader ts-node/esm src/example.ts commit",
-    "log": "node --loader ts-node/esm src/example.ts log",
-    "status": "node --loader ts-node/esm src/example.ts status"
+    "init": "tsx src/example.ts init",
+    "commit": "tsx src/example.ts commit",
+    "log": "tsx src/example.ts log",
+    "status": "tsx src/example.ts status"
   },
   "keywords": [
     "decentralized",
@@ -34,7 +34,8 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0"
   },
   "engines": {
     "node": ">=18.0.0"
