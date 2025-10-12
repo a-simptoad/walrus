@@ -14,7 +14,7 @@ const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
           className="btn btn--primary btn--lg"
           onClick={() => navigate('/dashboard')}
         >
-          Connect
+          Let's Go
         </button>
       </div>
     </div>

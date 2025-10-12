@@ -1,8 +1,8 @@
 /**
  * Sui Service - Interact with VersionFS contract on Sui
  */
-import 'dotenv/config';
-const privateKey = process.env.PRIVATE_KEY as string;
+// import 'dotenv/config';
+// const privateKey = process.env.PRIVATE_KEY as string;
 
 /**
  * Sui Service - Interact with VersionFS contract on Sui

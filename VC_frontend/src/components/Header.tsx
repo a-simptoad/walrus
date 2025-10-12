@@ -1,5 +1,7 @@
 import React from 'react';
 import { mockRepositories } from '../data/mockData';
+import { ConnectButton } from '@mysten/dapp-kit';
+
 
 // Define the props for the Header component
 interface HeaderProps {
@@ -15,7 +17,7 @@ const Header: React.FC<HeaderProps> = ({ currentRoute, navigate }) => {
         return null;
     }
     if (parts[1] === 'dashboard') {
-        return 'Dashboard';
+        return '';
     }
     if (parts[1] === 'repository') {
       const repoId = parts[2];
@@ -48,6 +50,7 @@ const Header: React.FC<HeaderProps> = ({ currentRoute, navigate }) => {
               {breadcrumb}
             </div>
           )}
+          <ConnectButton />
         </div>
       </div>
     </header>
