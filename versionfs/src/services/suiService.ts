@@ -7,9 +7,9 @@ import {
     getFullnodeUrl, 
     type SuiObjectChange, 
     type SuiEvent, 
-    type SuiTransactionBlockResponse 
 } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
+import { version } from 'os';
 
 // --- TYPE DEFINITIONS to match @mysten/dapp-kit hook output ---
 export interface DappKitTransactionOutput {
@@ -58,7 +58,6 @@ export class SuiService {
         this.client = new SuiClient({ url: getFullnodeUrl(network) });
         this.signAndExecuteTransaction = signAndExecute;
         this.currentAddress = address;
-        // IMPORTANT: Replace with your actual deployed package ID
         this.packageId = packageId || '0xf52972b9a7ea5ec2a8582777bd852f80c6c3d550a28242e5ef44e25320663e2e';
     }
 
@@ -78,51 +77,33 @@ export class SuiService {
         // Step 1: Execute the transaction and get the digest.
         const result = await this.signAndExecuteTransaction({ transaction: tx });
         const { digest } = result;
-        console.log(`Transaction submitted with digest: ${digest}`);
 
-        // Step 2: Fetch transaction details using the digest, with retries for network indexing delay.
-        const MAX_RETRIES = 5;
-        const RETRY_DELAY_MS = 1000; // 1 second
+        let repoId: string | undefined;
+        let capId: string | undefined;
+        let count = 5;
 
-        for (let i = 0; i < MAX_RETRIES; i++) {
+        do {
+            count--;
+            await new Promise(resolve => setTimeout(resolve, 1000));
             try {
-                const txDetails = await this.client.getTransactionBlock({
-                    digest: digest,
-                    options: { showObjectChanges: true },
-                });
-
-                let repoId: string | undefined;
-                let capId: string | undefined;
-
-                if (txDetails.objectChanges) {
-                    for (const change of txDetails.objectChanges) {
-                        if (change.type === 'created') {
-                            if (change.objectType.includes('::version_fs::Repository')) {
-                                repoId = change.objectId;
-                            } else if (change.objectType.includes('::version_fs::RepoCap')) {
-                                capId = change.objectId;
-                            }
-                        }
-                    }
-                }
-
+                const resultObj = await this.getRepoAndCapId(digest);
+                repoId = resultObj.repoId;
+                capId = resultObj.capId;
                 if (repoId && capId) {
                     console.log(`Successfully found created objects: Repo ID - ${repoId}, Cap ID - ${capId}`);
                     return { repoId, capId };
                 }
-
             } catch (error: any) {
                 if (error.message.includes('Could not find the referenced transaction')) {
-                    console.log(`Attempt ${i + 1}: Transaction not indexed yet. Retrying in ${RETRY_DELAY_MS}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+                    console.log(`Transaction not indexed yet.`);
                 } else {
                     throw error;
                 }
             }
-        }
+        } while (count == 0);
         
-        throw new Error(`Failed to find transaction details for digest ${digest} after ${MAX_RETRIES} attempts.`);
-    }
+      throw new Error(`Failed to find transaction details for digest ${digest}.`);
+}
 
     async commit(repoId: string, capId: string, branchName: string, rootBlobId: string, parentIds: string[], message: string): Promise<string> {
         const tx = new Transaction();
@@ -139,6 +120,7 @@ export class SuiService {
         });
 
         const result = await this.signAndExecuteTransaction({ transaction: tx, options: { showEvents: true } });
+        console.log(`Commit transaction submitted with digest: ${result}`);
         return this.extractVersionId(result);
     }
 
@@ -165,6 +147,8 @@ export class SuiService {
             filter: { StructType: repoObjectType },
             options: { showContent: true },
         });
+
+        console.log(`Owned objects: ${JSON.stringify(ownedObjects)}`);
 
         return ownedObjects.data.map(repo => {
             if (repo.data?.content?.dataType === 'moveObject') {
@@ -230,12 +214,62 @@ export class SuiService {
 
     // --- PRIVATE HELPER METHODS ---
 
-    private extractVersionId(result: DappKitTransactionOutput): string {
-        const event = result.events?.find(e => e.type.includes('NewCommit'));
-        if (event && event.parsedJson) {
-            return (event.parsedJson as { version_id: string }).version_id;
+    private async getRepoAndCapId(digest: string): Promise<{ repoId: string, capId: string }> {
+        console.log(`Transaction submitted with digest: ${digest}`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const txDetails = await this.client.getTransactionBlock({
+            digest: digest,
+            options: { showObjectChanges: true, showEvents: true }
+        });
+
+        console.log(`txdetails: ${JSON.stringify(txDetails)}`);
+        let repoId: string | undefined;
+        let capId: string | undefined;
+
+        if (!txDetails) {
+            throw new Error(`Failed to find transaction details for digest ${digest}.`);
         }
-        throw new Error('Could not extract version ID from transaction events.');
+
+        if (txDetails.objectChanges) {
+              for (const change of txDetails.objectChanges) {
+                  if (change.type === 'created') {
+                      if (change.objectType.includes('::version_fs::Repository')) {
+                          repoId = change.objectId;
+                      } else if (change.objectType.includes('::version_fs::RepoCap')) {
+                          capId = change.objectId;
+                      }
+                  }
+              }
+          }
+
+        return { repoId: repoId || '', capId: capId || '' };
+    }
+
+    private async extractVersionId(result: DappKitTransactionOutput): Promise<string> {
+        const { digest } = result;
+        console.log(`Transaction submitted with digest: ${digest}`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const txDetails = await this.client.getTransactionBlock({
+            digest: digest,
+            options: { showObjectChanges: true, showEvents: true }
+        });
+
+        console.log(`txdetails: ${JSON.stringify(txDetails)}`);
+        let versionId;
+
+        if (!txDetails) {
+            throw new Error(`Failed to find transaction details for digest ${digest}.`);
+        }
+        if (txDetails.events) {
+            for (const event of txDetails.events) {
+                if (event.type === `${this.packageId}::version_fs::CommitEvent`) {
+                    versionId = (event.parsedJson as any).version_id;
+                    console.log(`CommitEvent found! Version ID: ${versionId}`);
+                }
+            }
+        }
+        return versionId || '';
     }
 
     private parseDevInspectResult(result: any): any {
