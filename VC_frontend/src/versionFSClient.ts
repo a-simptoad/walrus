@@ -157,6 +157,7 @@ export class VersionFSClient {
 
     const commits: CommitMetadata[] = [];
     let currentId = await this.sui.getBranchHead(this.repoId, branch);
+    console.log(`Fetching up to ${limit} commits from branch '${branch}' starting at ${currentId}`);
     
     for (let i = 0; i < limit && currentId; i++) {
       const version = await this.sui.getVersion(this.repoId, currentId);

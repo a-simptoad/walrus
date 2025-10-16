@@ -9,7 +9,6 @@ import {
     type SuiEvent, 
 } from '@mysten/sui/client';
 import { Transaction } from '@mysten/sui/transactions';
-import { version } from 'os';
 
 // --- TYPE DEFINITIONS to match @mysten/dapp-kit hook output ---
 export interface DappKitTransactionOutput {
@@ -170,10 +169,14 @@ export class SuiService {
             options: { showContent: true },
         });
 
+        console.log(`Fetched repository object: ${JSON.stringify(object)}`);
+
         if (object.data?.content?.dataType !== 'moveObject') {
             throw new Error('Invalid repository object');
         }
         const fields = object.data.content.fields as any;
+
+        console.log(`Repository fields: ${JSON.stringify(fields)}`);
         return {
             id: fields.id.id,
             name: fields.name,
@@ -193,23 +196,37 @@ export class SuiService {
           transactionBlock: tx,
           sender: this.currentAddress,
         });
+        console.log(`Dev inspect result for getBranchHead: ${JSON.stringify(result)}`);
         
         return this.parseDevInspectResult(result) as string;
     }
 
-    async getVersion(repoId: string, versionId: string): Promise<VersionInfo> {
-        const tx = new Transaction();
-        tx.moveCall({
-          target: `${this.packageId}::version_fs::get_version`,
-          arguments: [tx.object(repoId), tx.pure.id(versionId)],
-        });
+    async getVersion(versionId: string): Promise<VersionInfo> {
+        try {
+            // This is just a standard API call. We use Suiscan's API as an example.
+            const response = await fetch(`https://api.suiscan.xyz/v2/sui/object/${versionId}`);
+            
+            if (!response.ok) {
+                throw new Error(`Indexer API failed with status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const fields = data.content.fields;
 
-        const result = await this.client.devInspectTransactionBlock({
-          transactionBlock: tx,
-          sender: this.currentAddress,
-        });
-        
-        return this.parseVersionInfo(result);
+            // The indexer also gives you a clean JSON object.
+            return {
+                versionId:  fields.version_id,
+                rootBlobId: fields.root_blob_id,
+                parents:    fields.parents,
+                author:     fields.author,
+                timestamp:  parseInt(fields.timestamp, 10),
+                message:    fields.message,
+            };
+
+        } catch (error) {
+            console.error("Failed to get version info from indexer:", error);
+            throw error;
+        }
     }
 
     // --- PRIVATE HELPER METHODS ---
@@ -274,32 +291,117 @@ export class SuiService {
 
     private parseDevInspectResult(result: any): any {
         const returnValues = result.results?.[0]?.returnValues;
+
         if (!returnValues || returnValues.length === 0) {
-            throw new Error('No return value from devInspect');
+            throw new Error('No return value found in devInspect result.');
         }
-        const bytes = returnValues[0][0];
-        // This assumes the return value is a string or an ID that can be decoded.
-        return new TextDecoder().decode(new Uint8Array(bytes));
+
+        // The return value is a tuple: [raw_bytes, move_type_string]
+        const [bytes, moveType] = returnValues[0];
+        const uint8Bytes = new Uint8Array(bytes);
+
+        console.log(`Decoding devInspect result of type: ${moveType}`);
+
+        // Use the correct "tool" based on the data type
+        switch (moveType) {
+            case 'address':
+            case '0x2::object::ID':
+                // Addresses and IDs are 32-byte hex strings
+                return bytesToHex(uint8Bytes);
+
+            case 'u64':
+                // Use DataView to correctly read a 64-bit little-endian integer
+                // Returned as a string to avoid JavaScript's number precision limits
+                if (uint8Bytes.length !== 8) throw new Error('Invalid u64 byte length');
+                const dataView = new DataView(uint8Bytes.buffer);
+                return dataView.getBigUint64(0, true).toString(); // true for little-endian
+
+            case 'bool':
+                // A boolean is a single byte: 1 for true, 0 for false
+                return uint8Bytes[0] === 1;
+
+            case 'vector<u8>':
+                // This is the one case where TextDecoder is appropriate, for strings
+                try {
+                    return new TextDecoder("utf-8", { fatal: true }).decode(uint8Bytes);
+                } catch (e) {
+                    // If it's not a valid UTF-8 string, fall back to hex
+                    console.warn("devInspect returned vector<u8> that was not a valid string. Falling back to hex.");
+                    return bytesToHex(uint8Bytes);
+                }
+
+            default:
+                // For any other type, we'll return the hex representation as a safe default
+                console.warn(`Unhandled devInspect type: '${moveType}'. Returning as hex.`);
+                return bytesToHex(uint8Bytes);
+        }
     }
 
     private parseVersionInfo(result: any): VersionInfo {
         const returnValues = result.results?.[0]?.returnValues;
-        if (!returnValues) {
-            throw new Error('Could not parse version info from devInspect result.');
-        }
-        
-        // This structure assumes your contract returns a tuple of the version's fields.
-        // The indices must match your contract's return signature.
-        const decode = (val: any) => new TextDecoder().decode(new Uint8Array(val[0]));
 
+        if (!returnValues || returnValues.length < 6) {
+            throw new Error('Could not parse version info: expected at least 6 return values.');
+        }
+
+        // --- Internal Helper to Decode a Single Value ---
+        // This function takes a single [bytes, moveType] tuple and decodes it.
+        const decodeValue = (valueTuple: [number[], string]): any => {
+            const [bytes, moveType] = valueTuple;
+            const uint8Bytes = new Uint8Array(bytes);
+
+            switch (moveType) {
+                case 'address':
+                case '0x2::object::ID':
+                    return bytesToHex(uint8Bytes);
+
+                case 'u64':
+                    const dataView = new DataView(uint8Bytes.buffer);
+                    // Use getBigUint64 for precision and convert to a number.
+                    // Note: This may lose precision if the timestamp is extremely large.
+                    return Number(dataView.getBigUint64(0, true)); // true for little-endian
+
+                case 'vector<u8>':
+                    return new TextDecoder().decode(uint8Bytes);
+
+                // This handles the case for a vector of addresses/IDs
+                case 'vector<address>':
+                case 'vector<0x2::object::ID>':
+                    const parents: string[] = [];
+                    // A vector is encoded with its length first (as a ULEB number),
+                    // followed by the raw bytes of its elements.
+                    // This is a simplified parser that assumes the first byte is the length.
+                    const length = uint8Bytes[0];
+                    for (let i = 0; i < length; i++) {
+                        const start = 1 + i * 32; // 1 byte for length, then 32 bytes per address
+                        const end = start + 32;
+                        if (uint8Bytes.length >= end) {
+                            parents.push(bytesToHex(uint8Bytes.slice(start, end)));
+                        }
+                    }
+                    return parents;
+
+                default:
+                    console.warn(`Unhandled devInspect type: '${moveType}'. Returning as hex.`);
+                    return bytesToHex(uint8Bytes);
+            }
+        };
+        // --- End of Internal Helper ---
+
+
+        // Now, decode each of the 6 return values using our helper
         return {
-            versionId: decode(returnValues[0]),
-            rootBlobId: decode(returnValues[1]),
-            parents: JSON.parse(decode(returnValues[2])), // Assuming parents are a JSON string array
-            author: decode(returnValues[3]),
-            timestamp: parseInt(decode(returnValues[4]), 10),
-            message: decode(returnValues[5]),
+            versionId:  decodeValue(returnValues[0]),
+            rootBlobId: decodeValue(returnValues[1]),
+            parents:    decodeValue(returnValues[2]),
+            author:     decodeValue(returnValues[3]),
+            timestamp:  decodeValue(returnValues[4]),
+            message:    decodeValue(returnValues[5]),
         };
     }
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+    return '0x' + Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
