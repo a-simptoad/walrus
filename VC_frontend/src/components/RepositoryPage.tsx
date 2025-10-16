@@ -51,23 +51,17 @@ const RepositoryPage: React.FC<RepositoryPageProps> = ({ repositoryId, navigate 
                 const repoInfo = await suiService.getRepository(repositoryId);
                 
                 setRepository(repoInfo);
-                if (!repoInfo) {
+                const commits = await versionFSClient.log('main');
+                console.log(`Fetched ${commits}`);
+
+                setVersions(commits);
+                console.log('Commit history:', commits);  
+
+                if (commits.length > 0) {
                     console.log('Repository info:', repoInfo);
-                }else {
-                  console.log("repoInfo.name:", repoInfo.name);
+
+                    setSelectedVersionId(commits[0].versionId);
                 }
-                // const commits = await versionFSClient.log('main');
-
-                // console.log(`Fetched ${commits}`);
-
-                // setVersions(commits);
-                // console.log('Commit history:', commits);  
-
-                // if (commits.length > 0) {
-                //     console.log('Repository info:', repoInfo);
-
-                //     setSelectedVersionId(commits[0].versionId);
-                // }
             } catch (e: any) {
                 console.error('Failed to fetch repository data:', e);
                 setError(`Failed to load repository: ${e.message}`);
