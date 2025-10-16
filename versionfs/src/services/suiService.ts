@@ -213,8 +213,6 @@ export class SuiService {
             
             // Step 3: Extract the raw bytes from the response.
             const returnValues = result.results?.[0]?.returnValues;
-            console.log(`Dev inspect result for getVersion: ${JSON.stringify(result)}`);
-            console.log(`Return values: ${JSON.stringify(returnValues)}`);
             if (!returnValues || returnValues.length === 0) {
                 throw new Error('No return value found for getVersion.');
             }
@@ -362,69 +360,6 @@ export class SuiService {
                 return bytesToHex(uint8Bytes);
         }
     }
-
-    // private parseVersionInfo(result: any): VersionInfo {
-    //     const returnValues = result.results?.[0]?.returnValues;
-
-    //     if (!returnValues || returnValues.length < 6) {
-    //         throw new Error('Could not parse version info: expected at least 6 return values.');
-    //     }
-
-    //     // --- Internal Helper to Decode a Single Value ---
-    //     // This function takes a single [bytes, moveType] tuple and decodes it.
-    //     const decodeValue = (valueTuple: [number[], string]): any => {
-    //         const [bytes, moveType] = valueTuple;
-    //         const uint8Bytes = new Uint8Array(bytes);
-
-    //         switch (moveType) {
-    //             case 'address':
-    //             case '0x2::object::ID':
-    //                 return bytesToHex(uint8Bytes);
-
-    //             case 'u64':
-    //                 const dataView = new DataView(uint8Bytes.buffer);
-    //                 // Use getBigUint64 for precision and convert to a number.
-    //                 // Note: This may lose precision if the timestamp is extremely large.
-    //                 return Number(dataView.getBigUint64(0, true)); // true for little-endian
-
-    //             case 'vector<u8>':
-    //                 return new TextDecoder().decode(uint8Bytes);
-
-    //             // This handles the case for a vector of addresses/IDs
-    //             case 'vector<address>':
-    //             case 'vector<0x2::object::ID>':
-    //                 const parents: string[] = [];
-    //                 // A vector is encoded with its length first (as a ULEB number),
-    //                 // followed by the raw bytes of its elements.
-    //                 // This is a simplified parser that assumes the first byte is the length.
-    //                 const length = uint8Bytes[0];
-    //                 for (let i = 0; i < length; i++) {
-    //                     const start = 1 + i * 32; // 1 byte for length, then 32 bytes per address
-    //                     const end = start + 32;
-    //                     if (uint8Bytes.length >= end) {
-    //                         parents.push(bytesToHex(uint8Bytes.slice(start, end)));
-    //                     }
-    //                 }
-    //                 return parents;
-
-    //             default:
-    //                 console.warn(`Unhandled devInspect type: '${moveType}'. Returning as hex.`);
-    //                 return bytesToHex(uint8Bytes);
-    //         }
-    //     };
-    //     // --- End of Internal Helper ---
-
-
-    //     // Now, decode each of the 6 return values using our helper
-    //     return {
-    //         versionId:  decodeValue(returnValues[0]),
-    //         rootBlobId: decodeValue(returnValues[1]),
-    //         parents:    decodeValue(returnValues[2]),
-    //         author:     decodeValue(returnValues[3]),
-    //         timestamp:  decodeValue(returnValues[4]),
-    //         message:    decodeValue(returnValues[5]),
-    //     };
-    // }
 }
 
 function bytesToHex(bytes: Uint8Array): string {

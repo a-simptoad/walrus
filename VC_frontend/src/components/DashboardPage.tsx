@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useCurrentAccount, useSignAndExecuteTransaction, ConnectButton, useSuiClientQuery } from '@mysten/dapp-kit';
-import { VersionFSClient } from '../versionFSClient'; // Adjust path if needed
-import { type RepositoryInfo as SuiRepositoryInfo } from '../../../versionfs/src/services/suiService'; // Adjust path if needed
-import { formatDate } from '../utils/formatting'; // Adjust path if needed
+import { VersionFSClient } from '../versionFSClient'; 
+import { type RepositoryInfo as SuiRepositoryInfo } from '../../../versionfs/src/services/suiService';
 
 // Define a UI-specific type for the repository, extending the core info
 interface RepositoryInfo extends SuiRepositoryInfo {
@@ -175,7 +174,6 @@ const DashboardPage: React.FC<DashboardPageProps> = ({ navigate }) => {
                                         <h4>{repo.name}</h4>
                                         <div className="repo-meta">
                                             <span>{repo.versionCount} commits</span>
-                                            <span>{formatDate(repo.lastUpdated)}</span>
                                         </div>
                                     </div>
                                 </div>
